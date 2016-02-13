@@ -6,6 +6,7 @@ module.exports = {
     output: {
         filename: "public/bundle.js"
     },
+    devtool: "cheap-module-eval-source-map",
     module: {
         loaders: [
             {
