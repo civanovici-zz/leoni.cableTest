@@ -1,6 +1,36 @@
 var React = require("react");
+var io = require("socket.io-client");
 
 var app = React.createClass({
+	getInitialState(){
+		return {
+			status:"disconnected",
+			batch:"none"
+		}
+	},
+	
+	componentWillMount (){
+		this.socket = io("http://localhost:3000");
+		this.socket.on("connect", this.connect);
+		this.socket.on("disconnect", this.disconnect);
+		this.socket.on("batchCange", this.batchCange);
+	},
+	
+	connect(){
+		this.setState({status:"Connected"});
+	},
+
+	disconnect(){
+		this.setState({status: "Disconnected"});
+	},
+
+	batchCange(serverState){
+		console.log(serverState);
+		this.setState({
+			batch:serverState.batch
+		});
+	},
+
     render(){
         return (
             <div className="container-fluid">
@@ -8,7 +38,8 @@ var app = React.createClass({
                     <h2>Leoni checking cable system</h2>
                 </div>
                 <div className="row">
-                    <h1>Current status</h1>
+                    <h3>STATUS {this.state.status}</h3>
+					<h3>Batch {this.state.batch}</h3>
                 </div>
                 <div className="row">
                     <div id="graph" className="col-xs-8">
