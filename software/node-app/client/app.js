@@ -1,7 +1,9 @@
 var React = require("react");
+var ReactDom = require("react-dom");
 var io = require("socket.io-client");
+var messageList = require("messageList");
 
-var app = React.createClass({
+var app = ReactDom.createClass({
 	getInitialState(){
 		return {
 			status:"disconnected",
@@ -38,8 +40,12 @@ var app = React.createClass({
                     <h2>Leoni checking cable system</h2>
                 </div>
                 <div className="row">
-                    <h3>STATUS {this.state.status}</h3>
-					<h3>Batch {this.state.batch}</h3>
+					<div className="col-xs-6">
+						<h3>STATUS {this.state.status}</h3>
+					</div>
+					<div className="col-xs-6">
+						<h3>Batch {this.state.batch}</h3>
+					</div>
                 </div>
                 <div className="row">
                     <div id="graph" className="col-xs-8">

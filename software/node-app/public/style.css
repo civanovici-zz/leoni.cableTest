@@ -1,0 +1,18 @@
+#graph{
+	height: 300px;
+	border: 1px solid gray;
+}
+
+#logger-container{
+	height: 300px;
+	border: solid 1px gray;
+	overflow: hidden;
+}
+
+.bar{
+	display: inline-block;
+	width:20px;
+	height:75px;
+	margin-right: 2px;
+	background-color: teal;
+}

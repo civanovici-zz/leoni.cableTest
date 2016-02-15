@@ -26,44 +26,19 @@ sp.open(function (error) {
   if ( error ) {
     console.log('failed to open: '+error);
   } else {
-    console.log('open');
-    sp.on('data', function(data) {
-      console.log('data received: ' + data);
-    });
+    console.log('arduino serial open');
+	io.emit("SerialPort",{isOpen:true});
+   
     sp.write("ls\n", function(err, results) {
       console.log('err ' + err);
       console.log('results ' + results);
     });
   }
 });
-
-
-/*
-var serialport = require("serialport");
-var SerialPort = serialport.SerialPort; // localize object constructor
-
-
-
-var sp = new SerialPort("/dev/ttyAMA0", {
-  baudrate: 9600
+sp.on('data', function(data) {
+	console.log('data received: ' + data);
 });
 
-// /dev/ttyAMA0
-///  parser: SerialPort.parsers.readline("\n"),
-
-
-
-sp.on("open",function(error){
-	if(error){
-		console.log("Error opening serial port",error);
-		return;
-	}
-	
-	io.emit("SerialPort",{isOpen:true});
-});
-
-
-*/
 
 io.sockets.on("connect",function(socket){
 
