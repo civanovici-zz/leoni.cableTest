@@ -1,9 +1,20 @@
 var React = require("react");
-var ReactDom = require("react-dom");
+var ReactD3 = require("react-d3-components");
+var BarChart = ReactD3.BarChart;
 
-var graph = ReactDom.createClass({
+var graph = React.createClass({
 	render(){
-		return (<div></div>);
+		return (
+				<BarChart
+						data={this.props.graphData}
+						width={380}
+						height={280}
+						margin={{top: 10, bottom: 30, left: 10, right: 10}}
+						colorByLabel={true}
+				/>
+		);
 	}
 });
 
+
+module.exports = graph;

@@ -1,13 +1,21 @@
 var React = require("react");
-var ReactDom = require("react-dom");
 var io = require("socket.io-client");
-var messageList = require("messageList");
+var MessageList = require("./messageList");
+var Graph = require("./graph");
 
-var app = ReactDom.createClass({
+var app = React.createClass({
 	getInitialState(){
 		return {
 			status:"disconnected",
-			batch:"none"
+			batch:"none",
+            messageList:[],
+            graphData:[{
+                label: 'a',
+                values: [
+                    {x:"0",y:0}
+                ]
+            }],
+            startButtonState:false
 		}
 	},
 	
@@ -16,6 +24,8 @@ var app = ReactDom.createClass({
 		this.socket.on("connect", this.connect);
 		this.socket.on("disconnect", this.disconnect);
 		this.socket.on("batchCange", this.batchCange);
+		this.socket.on("infoMessage", this.infoMessage);
+		this.socket.on("currentMeasurement", this.currentMeasurement);
 	},
 	
 	connect(){
@@ -33,6 +43,53 @@ var app = ReactDom.createClass({
 		});
 	},
 
+    infoMessage(serverState){
+        var msgList = this.state.messageList;
+        if(serverState.resetMessageList){
+            msgList = [];
+        }else {
+            msgList.push(serverState.newMessage);
+        }
+        this.setState({
+          messageList:msgList
+      })
+    },
+
+    currentMeasurement(serverState){
+        var tmp = this.state.graphData;
+        if(serverState.resetGraph == true) {
+            tmp[0].values.length=0;
+        }else{
+            var newValue = {
+                x: serverState.x,
+                y: serverState.y
+            }
+            tmp[0].values.push(newValue);
+        }
+        this.setState({
+            graphData:tmp
+        })
+    },
+
+    start:function(e){
+        console.log("click on start");
+        this.socket.emit("start");
+        this.setState({
+            startButtonState:true
+        });
+    },
+
+    print:function(e){
+        this.socket.emit("print");
+    },
+
+    stop:function(){
+        this.socket.emit("stop");
+        this.setState({
+            startButtonState:false
+        });
+    },
+
     render(){
         return (
             <div className="container-fluid">
@@ -49,7 +106,7 @@ var app = ReactDom.createClass({
                 </div>
                 <div className="row">
                     <div id="graph" className="col-xs-8">
-                        graph go here
+                        <Graph graphData={this.state.graphData}/>
                     </div>
                     <div className="col-xs-4">
                         <div>
@@ -58,17 +115,19 @@ var app = ReactDom.createClass({
                             <a className="btn btn-info  btn-block"> vaccum status</a>
                             <a className="btn btn-info  btn-block"> microwave status</a>
                         </div>
-                        <div id="logger-container">loging go here</div>
+                        <div id="logger-container">
+                            <MessageList messageList={this.state.messageList}/>
+                        </div>
                     </div>
                 </div>
 
                 <div id="toolbar" className="row">
                     <div className="col-xs-1"></div>
-                    <input type="button" className="col-xs-2 btn btn-primary btn-lg" value="START"/>
+                    <input type="button" className="col-xs-2 btn btn-primary btn-lg" disabled={this.state.startButtonState} onClick={this.start} value="START"/>
                     <div className="col-xs-2"></div>
-                    <input type="button" className="col-xs-2 btn btn-primary btn-lg" value="STOP"/>
+                    <input type="button" className="col-xs-2 btn btn-primary btn-lg" onClick={this.stop} value="STOP"/>
                     <div className="col-xs-2"></div>
-                    <input type="button" className="col-xs-2 btn btn-primary btn-lg" value="PRINT"/>
+                    <input type="button" className="col-xs-2 btn btn-primary btn-lg" onClick={this.print} value="PRINT"/>
                     <div className="col-xs-1"></div>
                 </div>
             </div>

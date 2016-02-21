@@ -1,25 +1,25 @@
 
-#define MOTOR_STEP_PIN 10
-#define MOTOR_DIR_PIN 9
+#define MOTOR_STEP_PIN 9
+#define MOTOR_DIR_PIN 10
 #define VACCUM_PIN 6
 #define MICROWAVE_PIN 5
 #define LIMIT_TOP_PIN A3
 #define LIMIT_BOTTOM_PIN A2
 #define EMERGENCY_PIN A5
-#define CABLE1_PIN A0
-#define CABLE2_PIN A1
+#define CABLE1_PIN A1
+#define CABLE2_PIN A0
 #define CABLES_PIN A4
 
-#define COMMAND_MOTOR_STOP 0
-#define COMMAND_MOTOR_UP 1
-#define COMMAND_MOTOR_DOWN 2
-#define COMMAND_VACCUM_ON 3
-#define COMMAND_VACCUM_OFF 4
-#define COMMAND_MICROWAVE_ON 5
-#define COMMAND_MICROWAVE_OFF 6
-#define COMMAND_MEASURE_CURRENT 7
-#define COMMAND_ATTACHED_WATCH_CABLE_ON 8
-#define COMMAND_ATTACHED_WATCH_CABLE_OFF 9
+#define COMMAND_MOTOR_STOP 48 //0
+#define COMMAND_MOTOR_UP 49   //1
+#define COMMAND_MOTOR_DOWN 50 //2
+#define COMMAND_VACCUM_ON 51  //3
+#define COMMAND_VACCUM_OFF 52 //4
+#define COMMAND_MICROWAVE_ON 53//5
+#define COMMAND_MICROWAVE_OFF 54//6
+#define COMMAND_MEASURE_CURRENT 55//7
+#define COMMAND_ATTACHED_WATCH_CABLE_ON 56//8
+#define COMMAND_ATTACHED_WATCH_CABLE_OFF 57//9
 
 boolean isMoving=false;
 int moveDirection=0;
@@ -48,6 +48,7 @@ void setup(){
   pinMode(CABLE1_PIN, INPUT_PULLUP);
   pinMode(CABLE2_PIN, INPUT_PULLUP);
   pinMode(CABLES_PIN, INPUT_PULLUP);
+  digitalWrite(MOTOR_DIR_PIN, HIGH);
 }
 
 void loop(){
@@ -60,10 +61,14 @@ void loop(){
         break;
       case COMMAND_MOTOR_UP:
         digitalWrite(MOTOR_DIR_PIN, LOW);
+        Serial.print("low");
+        delay(100);
         isMoving = true;
         break;
       case COMMAND_MOTOR_DOWN:
         digitalWrite(MOTOR_DIR_PIN, HIGH);
+        Serial.print("high");
+        delay(100);
         isMoving = true;
         break;
       case COMMAND_VACCUM_ON:
@@ -82,17 +87,19 @@ void loop(){
         //todo: measure current
         break;
     case COMMAND_ATTACHED_WATCH_CABLE_ON:
-    watchAttachedCable = true;
-    break;
+        watchAttachedCable = true;
+        break;
     case COMMAND_ATTACHED_WATCH_CABLE_OFF:
-    watchAttachedCable = false;
-    break;
+        watchAttachedCable = false;
+        break;
       default:
         message = "UNKNOW COMMAND";
+        Serial.print(byte);
         break;     
     }
+    Serial.print(byte);
   Serial.println(message);
-    
+  Serial.flush();  
   }
   readMachineState();
   driveStepper();
@@ -112,17 +119,17 @@ void readMachineState(){
   if(bottomLimit!=bottomLimitState){
     sendEvent(String("BOTTOM_LIMIT:")+String(bottomLimit));
     bottomLimitState = bottomLimit;
-	if(bottomLimitState == true){
-		isMoving = false;
-	}
+  if(bottomLimitState == true){
+    isMoving = false;
+  }
   }
   
   if(topLimit !=topLimitState){
     sendEvent(String("TOP_LIMIT:")+String(topLimit));
     topLimitState = topLimit;
-	if(topLimitState == true){
-		isMoving = false;
-	}
+  if(topLimitState == true){
+    isMoving = false;
+  }
   }
 }
 
@@ -149,9 +156,9 @@ void debounceEmergency(int reading){
   
   if((millis() - lastDebounceTimeEmergency) > debounceDelay) {
     if(reading != emergencyState){
-	  emergencyState = reading;
+    emergencyState = reading;
       sendEvent(String("EMERGENCY:")+String(emergencyState));
-	  isMoving = false;     
+    isMoving = false;     
     }
   }
 

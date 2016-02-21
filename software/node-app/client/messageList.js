@@ -1,12 +1,13 @@
 var React = require("react");
-var ReactDom = require("react-dom");
 
-var messageList = ReactDom.createClass({
+var MessageList = React.createClass({
 	
 	render(){
 		var messages = this.props.messageList.map(function(item){
-			return <li>{item.text}</li>
+			return <li>{item}</li>
 		})
-		return (<ul>{messages)</ul>);
+		return (<ul>{messages}</ul>);
 	}
 });
+
+module.exports = MessageList;
