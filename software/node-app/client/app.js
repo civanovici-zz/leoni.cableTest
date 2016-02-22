@@ -15,7 +15,8 @@ var app = React.createClass({
                     {x:"0",y:0}
                 ]
             }],
-            startButtonState:false
+            startButtonDisabled:true,
+            startButtonLabel:"START"
 		}
 	},
 	
@@ -25,6 +26,7 @@ var app = React.createClass({
 		this.socket.on("disconnect", this.disconnect);
 		this.socket.on("batchCange", this.batchCange);
 		this.socket.on("infoMessage", this.infoMessage);
+		this.socket.on("machineStateChanged", this.machineStateChanged);
 		this.socket.on("currentMeasurement", this.currentMeasurement);
 	},
 	
@@ -33,7 +35,10 @@ var app = React.createClass({
 	},
 
 	disconnect(){
-		this.setState({status: "Disconnected"});
+		this.setState({
+            status: "Disconnected",
+            startButtonDisabled:true
+        });
 	},
 
 	batchCange(serverState){
@@ -53,6 +58,25 @@ var app = React.createClass({
         this.setState({
           messageList:msgList
       })
+    },
+
+    machineStateChanged(serverData){
+        this.setState({
+            status:serverData.machineState.messageToScreen,
+            startButtonDisabled:serverData.machineState.startButtonDisabled,
+            startButtonLabel:serverData.machineState.startButtonLabel
+        });
+
+        var msgList = this.state.messageList;
+        if(serverData.resetMessageList){
+            msgList = [];
+        }else {
+            msgList.push(serverData.machineState.name+"-"+serverData.machineState.messageToScreen);
+        }
+        this.setState({
+            messageList:msgList
+        });
+        console.log("machine state changed",serverData);
     },
 
     currentMeasurement(serverState){
@@ -75,7 +99,7 @@ var app = React.createClass({
         console.log("click on start");
         this.socket.emit("start");
         this.setState({
-            startButtonState:true
+            startButtonDisabled:true
         });
     },
 
@@ -86,7 +110,7 @@ var app = React.createClass({
     stop:function(){
         this.socket.emit("stop");
         this.setState({
-            startButtonState:false
+            startButtonDisabled:false
         });
     },
 
@@ -98,7 +122,7 @@ var app = React.createClass({
                 </div>
                 <div className="row">
 					<div className="col-xs-6">
-						<h3>STATUS {this.state.status}</h3>
+						<h3>{this.state.status}</h3>
 					</div>
 					<div className="col-xs-6">
 						<h3>Batch {this.state.batch}</h3>
@@ -123,7 +147,8 @@ var app = React.createClass({
 
                 <div id="toolbar" className="row">
                     <div className="col-xs-1"></div>
-                    <input type="button" className="col-xs-2 btn btn-primary btn-lg" disabled={this.state.startButtonState} onClick={this.start} value="START"/>
+                    <input type="button" className="col-xs-2 btn btn-primary btn-lg" disabled={this.state.startButtonDisabled} onClick={this.start}
+                           value={this.state.startButtonLabel}/>
                     <div className="col-xs-2"></div>
                     <input type="button" className="col-xs-2 btn btn-primary btn-lg" onClick={this.stop} value="STOP"/>
                     <div className="col-xs-2"></div>

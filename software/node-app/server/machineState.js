@@ -20,6 +20,10 @@ MachineState.prototype.getCurrentState= function(){
     return this.currentState;
 };
 
+MachineState.prototype.setUndefinedState = function(){
+    this.currentState = this.states[1];
+};
+
 MachineState.prototype.getNextState = function(){
     var states= this.states.sort(function(a,b){
         return a.key - b.key;

@@ -12,7 +12,7 @@ let mainWindow;
 
 function createWindow () {
   // Create the browser window.
-  mainWindow = new BrowserWindow({width: 800, height: 600, resizable:false, movable:false, closable:true, skipTaskbar:true,
+  mainWindow = new BrowserWindow({width: 800, height: 600, resizable:false, movable:false, closable:false, skipTaskbar:true,
 	title:"Leoni cable test", frame:false
   });
 

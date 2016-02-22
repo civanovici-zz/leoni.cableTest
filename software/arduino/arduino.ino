@@ -18,7 +18,7 @@
 #define COMMAND_MICROWAVE_ON 53//5
 #define COMMAND_MICROWAVE_OFF 54//6
 #define COMMAND_MEASURE_CURRENT 55//7
-#define COMMAND_ATTACHED_WATCH_CABLE_ON 56//8
+#define COMMAND_READ_CABLE_CONNECTION 56//8
 #define COMMAND_ATTACHED_WATCH_CABLE_OFF 57//9
 
 boolean isMoving=false;
@@ -33,6 +33,12 @@ boolean watchAttachedCable = false;
 long debounceDelay = 50;    // the debounce time; increase if the output flickers
 long lastDebounceTimeEmergency = 0;  // the last time the output pin was toggled
 int lastEmergencyState=1;
+
+long lastDebounceTimeTopLimit = 0 ;
+int lastTopLimitState = 1;
+
+long lastDebounceTimeBottomLimit = 0 ;
+int lastBottomLimitState = 1;
 
 
 void setup(){
@@ -86,11 +92,8 @@ void loop(){
       case COMMAND_MEASURE_CURRENT:
         //todo: measure current
         break;
-    case COMMAND_ATTACHED_WATCH_CABLE_ON:
-        watchAttachedCable = true;
-        break;
-    case COMMAND_ATTACHED_WATCH_CABLE_OFF:
-        watchAttachedCable = false;
+    case COMMAND_READ_CABLE_CONNECTION:
+        measureCableConnection();
         break;
       default:
         message = "UNKNOW COMMAND";
@@ -105,33 +108,50 @@ void loop(){
   driveStepper();
 }
 
+
 void readMachineState(){
-  if(watchAttachedCable){
-    //TODO: check cable connection
-  }
+
   int topLimit,bottomLimit,emergency;
   
   bottomLimit = digitalRead(LIMIT_BOTTOM_PIN);
   topLimit = digitalRead(LIMIT_TOP_PIN);
   emergency = digitalRead(EMERGENCY_PIN);
   debounceEmergency(emergency);
+  debounceTopLimit(topLimit);
+  debounceBottomLimit(bottomLimit);
+//  debounceInput(bottomLimit, lastBottomLimitState, lastDebounceTimeBottomLimit, bottomLimitState,String("BOTTOM_LIMIT:"));
+//  if(bottomLimitState == true){
+//    isMoving = false;
+//  }
+
+//  debounceInput(topLimit, lastTopLimitState, lastDebounceTimeTopLimit, topLimitState,String("TOP_LIMIT:"));
+//  if(topLimitState == true){
+//    isMoving = false;
+//  }
+
   
-  if(bottomLimit!=bottomLimitState){
-    sendEvent(String("BOTTOM_LIMIT:")+String(bottomLimit));
-    bottomLimitState = bottomLimit;
-  if(bottomLimitState == true){
-    isMoving = false;
-  }
-  }
+//  if(bottomLimit!=bottomLimitState){
+//    sendEvent(String("BOTTOM_LIMIT:")+String(bottomLimit));
+//    bottomLimitState = bottomLimit;
+//    if(bottomLimitState == true){
+//      isMoving = false;
+//    }
+//  }
   
-  if(topLimit !=topLimitState){
-    sendEvent(String("TOP_LIMIT:")+String(topLimit));
-    topLimitState = topLimit;
-  if(topLimitState == true){
-    isMoving = false;
-  }
-  }
+//  if(topLimit !=topLimitState){
+//    sendEvent(String("TOP_LIMIT:")+String(topLimit));
+//    topLimitState = topLimit;
+//  if(topLimitState == true){
+//    isMoving = false;
+//  }
+//  }
 }
+
+void measureCableConnection(){
+  int cableConnection = analogRead(CABLE2_PIN);
+  sendEvent(String("CABLE_CONNECTION:")+String(cableConnection));
+}
+
 
 void sendEvent(String msg){
   Serial.println("EVENT:"+msg);
@@ -152,8 +172,7 @@ void driveStepper(){
 void debounceEmergency(int reading){
   if(reading != lastEmergencyState){
     lastDebounceTimeEmergency =millis();
-  }
-  
+  } 
   if((millis() - lastDebounceTimeEmergency) > debounceDelay) {
     if(reading != emergencyState){
     emergencyState = reading;
@@ -161,6 +180,47 @@ void debounceEmergency(int reading){
     isMoving = false;     
     }
   }
-
   lastEmergencyState = reading;
+}
+
+void debounceTopLimit(int reading){
+  if(reading != lastTopLimitState){
+    lastDebounceTimeTopLimit =millis();
+  } 
+  if((millis() - lastDebounceTimeTopLimit) > debounceDelay) {
+    if(reading != topLimitState){
+      topLimitState = reading;
+      sendEvent(String("TOP_LIMIT:")+String(topLimitState));
+      isMoving = false;     
+    }
+  }
+  lastTopLimitState = reading;
+}
+
+void debounceBottomLimit(int reading){
+  if(reading != lastBottomLimitState){
+    lastDebounceTimeBottomLimit =millis();
+  } 
+  if((millis() - lastDebounceTimeBottomLimit) > debounceDelay) {
+    if(reading != bottomLimitState){
+      bottomLimitState = reading;
+      sendEvent(String("BOTTOM_LIMIT:")+String(bottomLimitState));
+      isMoving = false;     
+    }
+  }
+  lastBottomLimitState = reading;
+}
+
+void debounceInput(int reading, int lastInputState, long lastDebounceTime, int inputState,String eventName){
+  if(reading != lastInputState){
+    lastDebounceTime =millis();
+  }  
+  if((millis() - lastDebounceTime) > debounceDelay) {
+    if(reading != inputState){
+      inputState = reading;
+      sendEvent(String(eventName)+String(inputState));
+      isMoving = false;     
+    }
+  }
+  lastInputState = reading;
 }
