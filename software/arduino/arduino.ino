@@ -20,6 +20,9 @@
 #define COMMAND_MEASURE_CURRENT 55//7
 #define COMMAND_READ_CABLE_CONNECTION 56//8
 #define COMMAND_ATTACHED_WATCH_CABLE_OFF 57//9
+#define MOVING_UP 1
+#define MOVING_DOWN 2
+#define MOVING_NONE 0
 
 boolean isMoving=false;
 int moveDirection=0;
@@ -40,6 +43,8 @@ int lastTopLimitState = 1;
 long lastDebounceTimeBottomLimit = 0 ;
 int lastBottomLimitState = 1;
 
+int movingDirection =0;
+
 
 void setup(){
   Serial.begin(9600);
@@ -47,7 +52,10 @@ void setup(){
   pinMode(MOTOR_DIR_PIN,OUTPUT);
   pinMode(VACCUM_PIN,OUTPUT);
   pinMode(MICROWAVE_PIN,OUTPUT);
-  
+
+  digitalWrite(MICROWAVE_PIN,LOW);
+  digitalWrite(VACCUM_PIN,LOW);
+    
   pinMode(LIMIT_TOP_PIN, INPUT_PULLUP);
   pinMode(LIMIT_BOTTOM_PIN, INPUT_PULLUP);
   pinMode(EMERGENCY_PIN, INPUT_PULLUP);
@@ -64,16 +72,19 @@ void loop(){
     switch(byte){
       case COMMAND_MOTOR_STOP:
         isMoving = false;
+        movingDirection =MOVING_NONE;
         break;
       case COMMAND_MOTOR_UP:
         digitalWrite(MOTOR_DIR_PIN, LOW);
         Serial.print("low");
+        movingDirection = MOVING_UP;
         delay(100);
         isMoving = true;
         break;
       case COMMAND_MOTOR_DOWN:
         digitalWrite(MOTOR_DIR_PIN, HIGH);
         Serial.print("high");
+        movingDirection = MOVING_DOWN;
         delay(100);
         isMoving = true;
         break;
@@ -90,7 +101,7 @@ void loop(){
         digitalWrite(MICROWAVE_PIN, LOW);
         break;
       case COMMAND_MEASURE_CURRENT:
-        //todo: measure current
+        measureLeakCurrent();
         break;
     case COMMAND_READ_CABLE_CONNECTION:
         measureCableConnection();
@@ -119,37 +130,17 @@ void readMachineState(){
   debounceEmergency(emergency);
   debounceTopLimit(topLimit);
   debounceBottomLimit(bottomLimit);
-//  debounceInput(bottomLimit, lastBottomLimitState, lastDebounceTimeBottomLimit, bottomLimitState,String("BOTTOM_LIMIT:"));
-//  if(bottomLimitState == true){
-//    isMoving = false;
-//  }
-
-//  debounceInput(topLimit, lastTopLimitState, lastDebounceTimeTopLimit, topLimitState,String("TOP_LIMIT:"));
-//  if(topLimitState == true){
-//    isMoving = false;
-//  }
-
-  
-//  if(bottomLimit!=bottomLimitState){
-//    sendEvent(String("BOTTOM_LIMIT:")+String(bottomLimit));
-//    bottomLimitState = bottomLimit;
-//    if(bottomLimitState == true){
-//      isMoving = false;
-//    }
-//  }
-  
-//  if(topLimit !=topLimitState){
-//    sendEvent(String("TOP_LIMIT:")+String(topLimit));
-//    topLimitState = topLimit;
-//  if(topLimitState == true){
-//    isMoving = false;
-//  }
-//  }
 }
 
 void measureCableConnection(){
   int cableConnection = analogRead(CABLE2_PIN);
   sendEvent(String("CABLE_CONNECTION:")+String(cableConnection));
+}
+
+void measureLeakCurrent(){
+  int cableConnection = analogRead(CABLE2_PIN);
+  int leakCurrent = analogRead(CABLE1_PIN);
+  sendEvent(String("LEAK_CURRENT:")+String(leakCurrent)+String(":")+String(cableConnection));
 }
 
 
@@ -161,6 +152,18 @@ void sendEvent(String msg){
 void driveStepper(){
   if(isMoving==false)
     return;   
+  if(movingDirection ==MOVING_UP && topLimitState == 0)
+  {
+    movingDirection = MOVING_NONE;
+    isMoving =false;
+  }
+
+  if(movingDirection ==MOVING_DOWN && bottomLimitState == 0)
+  {
+    movingDirection = MOVING_NONE;
+    isMoving =false;
+  }
+  
   int speedDelay=500;
   digitalWrite(MOTOR_STEP_PIN, LOW);
   delayMicroseconds(4);
@@ -177,7 +180,8 @@ void debounceEmergency(int reading){
     if(reading != emergencyState){
     emergencyState = reading;
       sendEvent(String("EMERGENCY:")+String(emergencyState));
-    isMoving = false;     
+      isMoving = false;     
+      movingDirection = MOVING_NONE; 
     }
   }
   lastEmergencyState = reading;
@@ -190,8 +194,11 @@ void debounceTopLimit(int reading){
   if((millis() - lastDebounceTimeTopLimit) > debounceDelay) {
     if(reading != topLimitState){
       topLimitState = reading;
-      sendEvent(String("TOP_LIMIT:")+String(topLimitState));
-      isMoving = false;     
+      if(movingDirection == MOVING_UP){
+        sendEvent(String("TOP_LIMIT:")+String(topLimitState));
+        isMoving = false;  
+        movingDirection = MOVING_NONE;   
+      }
     }
   }
   lastTopLimitState = reading;
@@ -204,8 +211,11 @@ void debounceBottomLimit(int reading){
   if((millis() - lastDebounceTimeBottomLimit) > debounceDelay) {
     if(reading != bottomLimitState){
       bottomLimitState = reading;
-      sendEvent(String("BOTTOM_LIMIT:")+String(bottomLimitState));
-      isMoving = false;     
+      if(movingDirection == MOVING_DOWN){
+        sendEvent(String("BOTTOM_LIMIT:")+String(bottomLimitState));
+        isMoving = false;   
+        movingDirection = MOVING_NONE;   
+      }
     }
   }
   lastBottomLimitState = reading;

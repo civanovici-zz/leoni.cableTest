@@ -16,7 +16,9 @@ var app = React.createClass({
                 ]
             }],
             startButtonDisabled:true,
-            startButtonLabel:"START"
+            startButtonLabel:"START",
+            microwaveState:"btn-info",
+            vaccumState:"btn-info"
 		}
 	},
 	
@@ -24,8 +26,10 @@ var app = React.createClass({
 		this.socket = io("http://localhost:3000");
 		this.socket.on("connect", this.connect);
 		this.socket.on("disconnect", this.disconnect);
-		this.socket.on("batchCange", this.batchCange);
+		this.socket.on("batchCange", this.batchChange);
 		this.socket.on("infoMessage", this.infoMessage);
+		this.socket.on("microwaveState", this.microwaveState);
+		this.socket.on("vaccumState", this.vaccumState);
 		this.socket.on("machineStateChanged", this.machineStateChanged);
 		this.socket.on("currentMeasurement", this.currentMeasurement);
 	},
@@ -41,7 +45,26 @@ var app = React.createClass({
         });
 	},
 
-	batchCange(serverState){
+    microwaveState(serverState){
+        var msgList = this.state.messageList;
+        msgList.push(serverState.microwaveState == true ? "microwave on" : "microwave off");
+        this.setState({
+            microwaveState:serverState.microwaveState == true ? "btn-danger" : "btn-info",
+            messageList:msgList
+        })
+    },
+
+    vaccumState(serverState){
+        var msgList = this.state.messageList;
+        msgList.push(serverState.vaccumState == true ? "vaccum on" : "vaccum off");
+
+        this.setState({
+            vaccumState:serverState.vaccumState == true ? "btn-danger" : "btn-info",
+            messageList:msgList
+        })
+    },
+
+	batchChange(serverState){
 		console.log(serverState);
 		this.setState({
 			batch:serverState.batch

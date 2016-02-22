@@ -28,11 +28,6 @@ io.sockets.on("connect",function(socket){
 		var currentState = machineState.moveToNextState();
 		io.emit("machineStateChanged",{machineState:currentState});
 		executeCurrentStateArduinoCommands();
-		//if(currentState.key ==5) {
-		//	machineState.stopCheckingCableHandler = setInterval(function () {
-		//		executeArduinoCommand(currentState.arduinoCommands[1]);
-		//	}, machineState.intervalToCheckCabllePresent);
-		//}
 	});
 
 	socket.on("print",function(){
@@ -100,11 +95,7 @@ var serialport = require("serialport");
 //	});
 //});
 
-//var arduinoSerial = require("./server/arduino-serial");
 
-//var serialport = require("serialport");
-
-//
 var SerialPort = serialport.SerialPort;
 //var sp = new SerialPort("/dev/ttyAMA0", {
 var sp = new SerialPort("COM7", {
@@ -118,13 +109,15 @@ sp.open(function (error) {
   } else {
     console.log('arduino serial open');
 	machineState.setUndefinedState();
-	  var state = machineState.getCurrentState();
-	  console.log("after start", state);
+	var state = machineState.getCurrentState();
+	console.log("after start", state);
 	io.emit("machineStateChanged",{machineState:state});
    
     sp.write("ls\n", function(err, results) {
-      console.log('err ' + err);
-      console.log('results ' + results);
+		if(err) {
+			console.log('err ' + err);
+		}
+		console.log('results ' + results);
     });
   }
 });
@@ -133,13 +126,16 @@ sp.on('data', function(data) {
 	data=data.toString();
 	var param= data.split(":");
 	if(param[0] == "EVENT"){
-		handleArduinoEvent(param[1],param[2]);
+		handleArduinoEvent(param);
 	}
 	//var command=param[1];
 	//if(command == undefined) return;
 });
 
-function handleArduinoEvent(eventName, eventValue){
+
+function handleArduinoEvent(parameters){
+	var eventName=parameters[1];
+	var eventValue = parameters[2];
 	var currentState;
 	var nextState;
 	switch (eventName){
@@ -150,13 +146,17 @@ function handleArduinoEvent(eventName, eventValue){
 				if(currentState.nextState == nextState.key) {
 					io.emit("machineStateChanged", {machineState: machineState.moveToNextState()});
 					currentState=machineState.getCurrentState();
-					if(currentState.key==6){
+					if(currentState.name==machineState.READY_FOR_TEST_STATE){
 						executeCurrentStateArduinoCommands();
 						io.emit("vaccumState",{vaccumState:true});
 						io.emit("microwaveState",{microwaveState:true});
+						setTimeout(function(){
+							currentState = machineState.moveToNextState();
+							machineState.stopCheckingCableHandler = setInterval(executeCurrentStateArduinoCommands,machineState.intervalToCheckCablleLeakCurrent);
+						},machineState.vaccumTimeout);
 
 						setTimeout(function(){
-							executeArduinoCommand(6);
+							executeArduinoCommand("6");
 							io.emit("microwaveState",{microwaveState:false});
 						},machineState.microwaveTimeout);
 					}
@@ -169,7 +169,7 @@ function handleArduinoEvent(eventName, eventValue){
 				if(currentState.nextState == nextState.key) {
 					io.emit("machineStateChanged", {machineState: machineState.moveToNextState()});
 					currentState = machineState.getCurrentState();
-					if(currentState.key == 3){
+					if(currentState.name ==machineState.WAIT_TO_ATTACH_CABLE_STATE){
 						machineState.stopCheckingCableHandler = setInterval(executeCurrentStateArduinoCommands,machineState.intervalToCheckCabllePresent);
 					}
 				}
@@ -183,9 +183,32 @@ function handleArduinoEvent(eventName, eventValue){
 				state = machineState.getCurrentState();
 				io.emit("machineStateChanged",{machineState:state});
 			break;
+		case "LEAK_CURRENT":
+				currentState = machineState.getCurrentState();
+				if(currentState.name == machineState.TEST_EXECUTION_STATE){
+					var cableValue = parameters[3];
+					console.log("measure current:", eventValue);
+					if(cableValue<50){
+						//cable detached
+						clearInterval(machineState.stopCheckingCableHandler);
+						machineState.setCableDetachedState();
+						return;
+					}
+					//nominal voltage = 5V
+					//resitor = 150 ohm
+					var current =((cableValue*5)/ 1024)/150;
+					io.emit("currentMeasurement",{x:machineState.leakCurrentSample.length,y:current});
+					machineState.leakCurrentSample.push(current);
+					if(machineState.leakCurrentTotalSampleCount<machineState.leakCurrentSample.length){
+						//stop sampling and do average
+						//increment OK/NOK
+						//getNextState
+					}
+				}
+			break;
 		case "CABLE_CONNECTION":
 				currentState = machineState.getCurrentState();
-				if(currentState.key == 3){
+				if(currentState.name == machineState.WAIT_TO_ATTACH_CABLE_STATE){
 					if(eventValue>50){
 						machineState.cablePresentCount++;
 					}else{
@@ -197,7 +220,7 @@ function handleArduinoEvent(eventName, eventValue){
 						io.emit("machineStateChanged",{machineState:currentState});
 
 					}
-				}else if(currentState.key==5){
+				}else if(currentState.name==machineState.MOVING_TO_TEST_POSITION_STATE){
 					if(eventValue<50){
 						clearInterval(machineState.stopCheckingCableHandler);
 						machineState.setCableDetachedState();
@@ -205,6 +228,8 @@ function handleArduinoEvent(eventName, eventValue){
 						io.emit("machineStateChanged",{machineState:currentState});
 						executeArduinoCommand(currentState.arduinoCommands[0]);
 					}
+				}else if(currentState.name == machineState.TEST_EXECUTION_STATE){
+					console.log("measure current:", eventValue);
 				}
 
 				console.log("reading value",eventValue);
@@ -233,16 +258,31 @@ function handleArduinoEvent(eventName, eventValue){
 //},10000);
 
 function MachineState(){
-	this.stopCheckingCableHandler=null; //variable to store setInterval handler
+	this.stopCheckingCableHandler=0; //variable to store setInterval handler
 	this.intervalToCheckCabllePresent =500; //interval to check if cable are attached
+	this.intervalToCheckCablleLeakCurrent =500; //interval to check if cable has leaks
 	this.cablePresentCount = 0; //how many times are checking if cable are attached
 	this.cablePresentMaxCount = 10; //how many times are checking if cable are attached
-	this.microwaveTimeout = 10;
+	this.microwaveTimeout = 5000;
+	this.vaccumTimeout = 10000;
+	this.leakCurrentSample=[]; //temp var for current samples
+	this.leakCurrentTotalSampleCount = 10; //how many samples to measure
+
+
+	this.EMERGENCY_STATE="EMERGENCY";
+	this.UNKNOWN_STATE="unknown";
+	this.MOVE_TO_START_POSITION_STATE = "moveToStartPosition";
+	this.WAIT_TO_ATTACH_CABLE_STATE = "waitForCable";
+	this.CABLE_ATTACHED_STATE = "cableAttached";
+	this.MOVING_TO_TEST_POSITION_STATE = "movingToTestPosition";
+	this.READY_FOR_TEST_STATE = "readyForTest";
+	this.TEST_EXECUTION_STATE = "testExecution";
+	this.CABLE_DETACHTED_IN_TEST_STATE = "cableDetachedInTest";
 
 	this.states=[
 		{
 			key:0,
-			name:"emergency",
+			name:this.EMERGENCY_STATE,
 			messageToScreen:"EMERGENCY button pressed",
 			startButtonDisabled:true,
 			startButtonLabel:"START",
@@ -250,7 +290,7 @@ function MachineState(){
 		},
 		{
 			key:1,
-			name:"unknown",
+			name:this.UNKNOWN_STATE,
 			messageToScreen:"Please press START",
 			startButtonDisabled:false,
 			startButtonLabel:"START",
@@ -258,7 +298,7 @@ function MachineState(){
 		},
 		{
 			key:2,
-			name:"moveToStartPosition",
+			name:this.MOVE_TO_START_POSITION_STATE,
 			messageToScreen:"Moving to START position",
 			startButtonDisabled:true,
 			startButtonLabel:"START",
@@ -267,7 +307,7 @@ function MachineState(){
 		},
 		{
 			key: 3,
-			name: "waitForCable",
+			name: this.WAIT_TO_ATTACH_CABLE_STATE,
 			messageToScreen:"Please attach the cable",
 			startButtonDisabled:true,
 			arduinoCommands:["8"],
@@ -275,32 +315,40 @@ function MachineState(){
 		},
 		{
 			key:4,
-			name:"cableAttached",
+			name:this.CABLE_ATTACHED_STATE,
 			messageToScreen:"Cable attached, please press START",
 			startButtonDisabled:false,
 			startButtonLabel:"START"
 		},
 		{
 			key:5,
-			name:"movingToTestPosition",
+			name:this.MOVING_TO_TEST_POSITION_STATE,
 			messageToScreen:"Moving to test position",
 			startButtonDisabled:true,
 			arduinoCommands:["2","8"],
-			startButtonLabel:"START",
+			startButtonLabel:"WAIT",
 			nextState:6
 		},
 		{
 			key:6,
-			name:"readyForTest",
+			name:this.READY_FOR_TEST_STATE,
 			messageToScreen:"Ready for test",
 			startButtonDisabled:true,
 			arduinoCommands:["0","3","5"],
-			startButtonLabel:"START",
+			startButtonLabel:"WAIT",
 			nextState:7
 		},
 		{
+			key:7,
+			name:this.TEST_EXECUTION_STATE,
+			messageToScreen:"Test execution",
+			startButtonDisabled:true,
+			startButtonLabel:"WAIT",
+			arduinoCommands:["7"]
+		},
+		{
 			key:50,
-			name:"cableDetachedInTest",
+			name:this.CABLE_DETACHTED_IN_TEST_STATE,
 			startButtonDisabled:false,
 			messageToScreen:"Cable detached, please press START",
 			arduinoCommand:[0],
@@ -318,7 +366,8 @@ MachineState.prototype.resetInternalState = function(){
 	var me=this;
 	clearInterval(me.stopCheckingCableHandler);
 	me.cablePresentCount =0;
-}
+	me.leakCurrentSampleCount=0;
+};
 MachineState.prototype.setUndefinedState = function(){
 	this.currentState = this.states[1];
 	this.resetInternalState();
@@ -327,7 +376,7 @@ MachineState.prototype.setUndefinedState = function(){
 MachineState.prototype.setCableDetachedState = function(){
 	this.currentState=this.getStateByKey(50);
 	this.resetInternalState();
-}
+};
 
 MachineState.prototype.setEmergencyState = function(){
 	this.currentState = this.states[0];
@@ -340,7 +389,7 @@ MachineState.prototype.getPreviousState = function(){
 	});
 	for(var i=0; i<states.length;i++){
 		if(states[i].key==this.getCurrentState().key) {
-			var newState = states[i - 1];
+			newState = states[i - 1];
 			return newState;
 		}
 	}
