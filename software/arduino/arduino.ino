@@ -19,7 +19,7 @@
 #define COMMAND_MICROWAVE_OFF 54//6
 #define COMMAND_MEASURE_CURRENT 55//7
 #define COMMAND_READ_CABLE_CONNECTION 56//8
-#define COMMAND_ATTACHED_WATCH_CABLE_OFF 57//9
+#define COMMAND_GET_LIMIT_SWITCH_STATE 57//9
 #define MOVING_UP 1
 #define MOVING_DOWN 2
 #define MOVING_NONE 0
@@ -76,14 +76,12 @@ void loop(){
         break;
       case COMMAND_MOTOR_UP:
         digitalWrite(MOTOR_DIR_PIN, LOW);
-        Serial.print("low");
         movingDirection = MOVING_UP;
         delay(100);
         isMoving = true;
         break;
       case COMMAND_MOTOR_DOWN:
         digitalWrite(MOTOR_DIR_PIN, HIGH);
-        Serial.print("high");
         movingDirection = MOVING_DOWN;
         delay(100);
         isMoving = true;
@@ -103,8 +101,11 @@ void loop(){
       case COMMAND_MEASURE_CURRENT:
         measureLeakCurrent();
         break;
-    case COMMAND_READ_CABLE_CONNECTION:
+      case COMMAND_READ_CABLE_CONNECTION:
         measureCableConnection();
+        break;
+      case COMMAND_GET_LIMIT_SWITCH_STATE:
+        sendEvent(String("LIMIT_SWITCH:")+String(topLimitState)+String(":")+String(bottomLimitState));
         break;
       default:
         message = "UNKNOW COMMAND";

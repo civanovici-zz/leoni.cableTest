@@ -12,8 +12,9 @@ let mainWindow;
 
 function createWindow () {
   // Create the browser window.
-  mainWindow = new BrowserWindow({width: 800, height: 600, resizable:false, movable:false, closable:false, skipTaskbar:true,
-	title:"Leoni cable test", frame:false
+  //, resizable:false, movable:false, closable:false, skipTaskbar:true, frame:false
+  mainWindow = new BrowserWindow({width: 800, height: 600,
+	title:"Leoni cable test"
   });
 
   // and load the index.html of the app.
@@ -21,7 +22,7 @@ function createWindow () {
   mainWindow.loadURL("http://localhost:3000");
 
   // Open the DevTools.
-  //mainWindow.webContents.openDevTools();
+  mainWindow.webContents.openDevTools();
 
   // Emitted when the window is closed.
   mainWindow.on('closed', function() {

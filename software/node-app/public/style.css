@@ -6,6 +6,6 @@
 #logger-container{
 	height: 300px;
 	border: solid 1px gray;
-	overflow: hidden;
+	overflow: scroll;
 }
 

@@ -33,7 +33,8 @@ var app = React.createClass({
 		this.socket.on("machineStateChanged", this.machineStateChanged);
 		this.socket.on("currentMeasurement", this.currentMeasurement);
 	},
-	
+    microwaveState(){},
+    vaccumState(){},
 	connect(){
 		this.setState({status:"Connected"});
 	},
@@ -44,25 +45,6 @@ var app = React.createClass({
             startButtonDisabled:true
         });
 	},
-
-    microwaveState(serverState){
-        var msgList = this.state.messageList;
-        msgList.push(serverState.microwaveState == true ? "microwave on" : "microwave off");
-        this.setState({
-            microwaveState:serverState.microwaveState == true ? "btn-danger" : "btn-info",
-            messageList:msgList
-        })
-    },
-
-    vaccumState(serverState){
-        var msgList = this.state.messageList;
-        msgList.push(serverState.vaccumState == true ? "vaccum on" : "vaccum off");
-
-        this.setState({
-            vaccumState:serverState.vaccumState == true ? "btn-danger" : "btn-info",
-            messageList:msgList
-        })
-    },
 
 	batchChange(serverState){
 		console.log(serverState);
@@ -84,11 +66,26 @@ var app = React.createClass({
     },
 
     machineStateChanged(serverData){
+        if(serverData == undefined) return;
         this.setState({
-            status:serverData.machineState.messageToScreen,
             startButtonDisabled:serverData.machineState.startButtonDisabled,
             startButtonLabel:serverData.machineState.startButtonLabel
         });
+        if(serverData.machineState.messageToScreen){
+            this.setState({
+                status:serverData.machineState.messageToScreen
+            });
+        }
+        if(serverData.machineState.resetGraph){
+            this.setState({
+                graphData:[{
+                    label: 'a',
+                    values: [
+                        {x:"0",y:0}
+                    ]
+                }]
+            })
+        }
 
         var msgList = this.state.messageList;
         if(serverData.resetMessageList){
