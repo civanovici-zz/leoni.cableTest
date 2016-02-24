@@ -15,28 +15,42 @@ var app = React.createClass({
                     {x:"0",y:0}
                 ]
             }],
-            startButtonState:false
+            startButtonDisabled:true,
+            startButtonLabel:"START",
+            microwaveState:"btn-info",
+            vaccumState:"btn-info",
+            totalOK:0,
+            totalNOK:0
 		}
 	},
 	
 	componentWillMount (){
 		this.socket = io("http://localhost:3000");
 		this.socket.on("connect", this.connect);
+		this.socket.on("incrementOK", this.incrementOK);
+		this.socket.on("incrementNOK", this.incrementNOK);
 		this.socket.on("disconnect", this.disconnect);
-		this.socket.on("batchCange", this.batchCange);
+		this.socket.on("batchCange", this.batchChange);
 		this.socket.on("infoMessage", this.infoMessage);
+		this.socket.on("microwaveState", this.microwaveState);
+		this.socket.on("vaccumState", this.vaccumState);
+		this.socket.on("machineStateChanged", this.machineStateChanged);
 		this.socket.on("currentMeasurement", this.currentMeasurement);
 	},
-	
+    microwaveState(){},
+    vaccumState(){},
 	connect(){
 		this.setState({status:"Connected"});
 	},
 
 	disconnect(){
-		this.setState({status: "Disconnected"});
+		this.setState({
+            status: "Disconnected",
+            startButtonDisabled:true
+        });
 	},
 
-	batchCange(serverState){
+	batchChange(serverState){
 		console.log(serverState);
 		this.setState({
 			batch:serverState.batch
@@ -55,6 +69,40 @@ var app = React.createClass({
       })
     },
 
+    machineStateChanged(serverData){
+        if(serverData == undefined) return;
+        this.setState({
+            startButtonDisabled:serverData.machineState.startButtonDisabled,
+            startButtonLabel:serverData.machineState.startButtonLabel
+        });
+        if(serverData.machineState.messageToScreen){
+            this.setState({
+                status:serverData.machineState.messageToScreen
+            });
+        }
+        if(serverData.machineState.resetGraph){
+            this.setState({
+                graphData:[{
+                    label: 'a',
+                    values: [
+                        {x:"0",y:0}
+                    ]
+                }]
+            })
+        }
+
+        var msgList = this.state.messageList;
+        if(serverData.resetMessageList){
+            msgList = [];
+        }else {
+            msgList.push(serverData.machineState.name+"-"+serverData.machineState.messageToScreen);
+        }
+        this.setState({
+            messageList:msgList
+        });
+        console.log("machine state changed",serverData);
+    },
+
     currentMeasurement(serverState){
         var tmp = this.state.graphData;
         if(serverState.resetGraph == true) {
@@ -71,11 +119,23 @@ var app = React.createClass({
         })
     },
 
+    incrementNOK:function(serverData){
+        this.setState({
+            totalNOK:serverData.totalNOK
+        });
+    },
+
+    incrementOK:function(serverData){
+        this.setState({
+            totalOK:serverData.totalOK
+        });
+    },
+
     start:function(e){
         console.log("click on start");
         this.socket.emit("start");
         this.setState({
-            startButtonState:true
+            startButtonDisabled:true
         });
     },
 
@@ -86,7 +146,7 @@ var app = React.createClass({
     stop:function(){
         this.socket.emit("stop");
         this.setState({
-            startButtonState:false
+            startButtonDisabled:false
         });
     },
 
@@ -98,7 +158,7 @@ var app = React.createClass({
                 </div>
                 <div className="row">
 					<div className="col-xs-6">
-						<h3>STATUS {this.state.status}</h3>
+						<h3>{this.state.status}</h3>
 					</div>
 					<div className="col-xs-6">
 						<h3>Batch {this.state.batch}</h3>
@@ -109,26 +169,37 @@ var app = React.createClass({
                         <Graph graphData={this.state.graphData}/>
                     </div>
                     <div className="col-xs-4">
-                        <div>
-                            <a className="btn btn-danger btn-block"> scanner status</a>
-                            <a className="btn btn-danger  btn-block"> printer status</a>
-                            <a className="btn btn-info  btn-block"> vaccum status</a>
-                            <a className="btn btn-info  btn-block"> microwave status</a>
+                        <div className="row">
+                            <input type="button" className="col-xs-8 btn btn-primary btn-lg action-button" disabled={this.state.startButtonDisabled} onClick={this.start}
+                                   value={this.state.startButtonLabel}/>
+                            <br/>
                         </div>
-                        <div id="logger-container">
-                            <MessageList messageList={this.state.messageList}/>
+                        <div className="row">
+                            <input type="button" className="col-xs-8 btn btn-primary btn-lg action-button" onClick={this.stop} value="STOP"/>
+                            <br/>
                         </div>
+                        <div className="row">
+                            <input type="button" className="col-xs-8 btn btn-primary btn-lg action-button" onClick={this.print} value="PRINT"/>
+                            <br/>
+                        </div>
+
                     </div>
                 </div>
-
-                <div id="toolbar" className="row">
-                    <div className="col-xs-1"></div>
-                    <input type="button" className="col-xs-2 btn btn-primary btn-lg" disabled={this.state.startButtonState} onClick={this.start} value="START"/>
-                    <div className="col-xs-2"></div>
-                    <input type="button" className="col-xs-2 btn btn-primary btn-lg" onClick={this.stop} value="STOP"/>
-                    <div className="col-xs-2"></div>
-                    <input type="button" className="col-xs-2 btn btn-primary btn-lg" onClick={this.print} value="PRINT"/>
-                    <div className="col-xs-1"></div>
+                <div className="row">
+                    <div className="col-xs-4">
+                        <h3>Total OK</h3>
+                    </div>
+                    <div className="col-xs-4">
+                        <h3>{this.state.totalOK}</h3>
+                    </div>
+                </div>
+                <div className="row redClass">
+                    <div className="col-xs-4">
+                        <h3>Total NOK</h3>
+                    </div>
+                    <div className="col-xs-4">
+                        <h3>{this.state.totalNOK}</h3>
+                    </div>
                 </div>
             </div>
         );
