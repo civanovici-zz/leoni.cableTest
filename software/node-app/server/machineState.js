@@ -28,6 +28,7 @@ function MachineState(){
     this.CABLE_DETACHTED_IN_TEST_STATE = "cableDetachedInTest";
     this.TEST_EXECUTION_COMPLETE_STATE = "testExecutionComplete";
     this.MOVING_TO_START_POSITION_STATE = "movingToStartPosition";
+    this.WAIT_FOR_NEW_TEST = "waitForNewTest";
 
     this.states=[
         {
@@ -87,6 +88,7 @@ function MachineState(){
             name:this.READY_FOR_TEST_STATE,
             messageToScreen:"Ready for test",
             startButtonDisabled:true,
+            arduinoCommands:["0"],
             arduinoCommands:["0","3","5"],
             startButtonLabel:"WAIT",
             nextState:7
@@ -94,32 +96,32 @@ function MachineState(){
         {
             key:7,
             name:this.TEST_EXECUTION_STATE,
-            messageToScreen:"Test execution",
+            messageToScreen:"Test progress ...",
             startButtonDisabled:true,
             startButtonLabel:"WAIT",
             arduinoCommands:["7"]
         },
         {
             key:8,
-            name:this.TEST_EXECUTION_COMPLETE_STATE,
-            messageToScreen:"Wait for results",
+            name:this.MOVING_TO_START_POSITION_STATE,
             startButtonDisabled:true,
             startButtonLabel:"WAIT",
             arduinoCommands:["1","4","6"],
             nextState:9
         },
         {
-            key:9,
-            name:this.MOVING_TO_START_POSITION_STATE,
-            startButtonDisabled:true,
-            startButtonLabel:"WAIT",
-            arduinoCommands:["4","6"]
+            key: 9,
+            name: this.WAIT_FOR_NEW_TEST,
+            startButtonDisabled:false,
+            messageToScreen:"Press START after you change cables for a new test",
+            startButtonLabel:"START"
         },
         {
             key:50,
             name:this.CABLE_DETACHTED_IN_TEST_STATE,
             messageToScreen:"Cable detached, please press START",
             arduinoCommands:["0","4","6"],
+            resetGraph:true,
             startButtonDisabled:false,
             startButtonLabel:"START"
         }
@@ -129,6 +131,13 @@ function MachineState(){
 
 MachineState.prototype.getCurrentState= function(){
     return this.currentState;
+};
+
+MachineState.prototype.resetForNewTest = function(){
+    var me =this;
+    me.cablePresentCount =0;
+    me.leakCurrentSample.length=0;
+    this.currentState = this.states[1];
 };
 
 MachineState.prototype.resetInternalState = function(){

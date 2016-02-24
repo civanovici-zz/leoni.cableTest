@@ -18,13 +18,17 @@ var app = React.createClass({
             startButtonDisabled:true,
             startButtonLabel:"START",
             microwaveState:"btn-info",
-            vaccumState:"btn-info"
+            vaccumState:"btn-info",
+            totalOK:0,
+            totalNOK:0
 		}
 	},
 	
 	componentWillMount (){
 		this.socket = io("http://localhost:3000");
 		this.socket.on("connect", this.connect);
+		this.socket.on("incrementOK", this.incrementOK);
+		this.socket.on("incrementNOK", this.incrementNOK);
 		this.socket.on("disconnect", this.disconnect);
 		this.socket.on("batchCange", this.batchChange);
 		this.socket.on("infoMessage", this.infoMessage);
@@ -115,6 +119,18 @@ var app = React.createClass({
         })
     },
 
+    incrementNOK:function(serverData){
+        this.setState({
+            totalNOK:serverData.totalNOK
+        });
+    },
+
+    incrementOK:function(serverData){
+        this.setState({
+            totalOK:serverData.totalOK
+        });
+    },
+
     start:function(e){
         console.log("click on start");
         this.socket.emit("start");
@@ -153,27 +169,37 @@ var app = React.createClass({
                         <Graph graphData={this.state.graphData}/>
                     </div>
                     <div className="col-xs-4">
-                        <div>
-                            <a className="btn btn-danger btn-block"> scanner status</a>
-                            <a className="btn btn-danger  btn-block"> printer status</a>
-                            <a className="btn btn-info  btn-block"> vaccum status</a>
-                            <a className="btn btn-info  btn-block"> microwave status</a>
+                        <div className="row">
+                            <input type="button" className="col-xs-8 btn btn-primary btn-lg action-button" disabled={this.state.startButtonDisabled} onClick={this.start}
+                                   value={this.state.startButtonLabel}/>
+                            <br/>
                         </div>
-                        <div id="logger-container">
-                            <MessageList messageList={this.state.messageList}/>
+                        <div className="row">
+                            <input type="button" className="col-xs-8 btn btn-primary btn-lg action-button" onClick={this.stop} value="STOP"/>
+                            <br/>
                         </div>
+                        <div className="row">
+                            <input type="button" className="col-xs-8 btn btn-primary btn-lg action-button" onClick={this.print} value="PRINT"/>
+                            <br/>
+                        </div>
+
                     </div>
                 </div>
-
-                <div id="toolbar" className="row">
-                    <div className="col-xs-1"></div>
-                    <input type="button" className="col-xs-2 btn btn-primary btn-lg" disabled={this.state.startButtonDisabled} onClick={this.start}
-                           value={this.state.startButtonLabel}/>
-                    <div className="col-xs-2"></div>
-                    <input type="button" className="col-xs-2 btn btn-primary btn-lg" onClick={this.stop} value="STOP"/>
-                    <div className="col-xs-2"></div>
-                    <input type="button" className="col-xs-2 btn btn-primary btn-lg" onClick={this.print} value="PRINT"/>
-                    <div className="col-xs-1"></div>
+                <div className="row">
+                    <div className="col-xs-4">
+                        <h3>Total OK</h3>
+                    </div>
+                    <div className="col-xs-4">
+                        <h3>{this.state.totalOK}</h3>
+                    </div>
+                </div>
+                <div className="row redClass">
+                    <div className="col-xs-4">
+                        <h3>Total NOK</h3>
+                    </div>
+                    <div className="col-xs-4">
+                        <h3>{this.state.totalNOK}</h3>
+                    </div>
                 </div>
             </div>
         );

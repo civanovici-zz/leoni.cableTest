@@ -175,12 +175,15 @@ function handleArduinoEvent(parameters){
 		case "TOP_LIMIT":
 				currentState = machineState.getCurrentState();
 				nextState = machineState.getNextState();
-				//console.log("current:",currentState,"next",nextState);
+				console.log("TOP_LIMIT current:",currentState,"next",nextState);
 				if(currentState.nextState == nextState.key) {
-					io.emit("machineStateChanged", {machineState: machineState.moveToNextState()});
-					currentState = machineState.getCurrentState();
+					currentState = machineState.moveToNextState();
+					io.emit("machineStateChanged", {machineState: currentState});
 					if(currentState.name ==machineState.WAIT_TO_ATTACH_CABLE_STATE){
 						machineState.stopCheckingCableHandler = setInterval(executeCurrentStateArduinoCommands,machineState.intervalToCheckCabllePresent);
+					}else if(currentState.name == machineState.WAIT_FOR_NEW_TEST){
+						io.emit("infoMessage",{resetMessageList:true});
+						machineState.resetForNewTest();
 					}
 				}
 			break;
@@ -202,7 +205,6 @@ function handleArduinoEvent(parameters){
 						//cable detached
 						clearInterval(machineState.stopCurrentLeakeageHandler);
 						currentState = machineState.setCableDetachedState();
-						console.log("state111: ",currentState);
 						executeCurrentStateArduinoCommands();
 						io.emit("machineStateChanged",{machineState:currentState});
 						return;
@@ -222,7 +224,7 @@ function handleArduinoEvent(parameters){
 						}
 						var averageCurrent = totalCurrent/machineState.leakCurrentSample.length;
 						//getNextState
-						currentState = machineState.getNextState();
+						currentState = machineState.moveToNextState();
 
 						//increment OK/NOK
 						if(averageCurrent<1){
@@ -232,13 +234,11 @@ function handleArduinoEvent(parameters){
 							machineState.salmpleNOK++;
 							currentState.messageToScreen="TEST FAIL";
 						}
+						io.emit("incrementOK",{totalOK:machineState.salmpleOK});
+						io.emit("incrementNOK",{totalNOK:machineState.salmpleNOK});
 						io.emit("machineStateChanged",{machineState:currentState});
 						clearInterval(machineState.stopCurrentLeakeageHandler);
-						setTimeout(function(){
-							executeArduinoCommand("4");
-							executeArduinoCommand("6");
-							executeArduinoCommand("1");
-						},500);
+						executeCurrentStateArduinoCommands();
 						return;
 					}
 					console.log("samples count:"+machineState.leakCurrentSample.length,machineState.leakCurrentTotalSampleCount);
