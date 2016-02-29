@@ -1,0 +1,19 @@
+#graph{
+    height: 300px;
+    border: 1px solid gray;
+}
+
+#logger-container{
+    height: 300px;
+    border: solid 1px gray;
+    overflow: scroll;
+}
+
+.action-button{
+    margin:10px;
+}
+
+.redClass{
+    color:red;
+}
+
