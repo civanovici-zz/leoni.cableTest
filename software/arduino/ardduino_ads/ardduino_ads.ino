@@ -7,9 +7,9 @@
 #define MOTOR_DIR_PIN 13
 #define VACCUM_PIN A4
 #define MICROWAVE_PIN A0
-#define LIMIT_TOP_PIN 6
-#define LIMIT_BOTTOM_PIN 2
-#define EMERGENCY_PIN 10
+#define LIMIT_TOP_PIN 7
+#define LIMIT_BOTTOM_PIN 3
+#define EMERGENCY_PIN 11
 //#define CABLE1_PIN A1
 #define CABLE2_PIN A8
 //#define CABLES_PIN A4

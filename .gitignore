@@ -1,0 +1,10 @@
+hardware/gertduino shield.b#1
+hardware/gertduino shield.s#4
+hardware/gertduino shield.s#5
+hardware/gertduino shield.s#6
+hardware/gertduino shield.s#7
+hardware/gertduino shield.s#8
+software/node/node_modules/
+software/ui/node_modules/
+software/ui/.idea/
+software/node-app/public/bundle.js
