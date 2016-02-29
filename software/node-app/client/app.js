@@ -25,7 +25,7 @@ var app = React.createClass({
 	},
 	
 	componentWillMount (){
-		this.socket = io("http://localhost:3000");
+		this.socket = io("http://192.168.5.103:3000");
 		this.socket.on("connect", this.connect);
 		this.socket.on("incrementOK", this.incrementOK);
 		this.socket.on("incrementNOK", this.incrementNOK);

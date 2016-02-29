@@ -1,7 +1,7 @@
 /**
  * Created by roduino on 2/13/2016.
  */
-
+ 
 var express = require("express");
 
 var app = express();
@@ -37,7 +37,7 @@ io.sockets.on("connect",function(socket){
 			if(err) {
 				console.log('err ' + err);
 			}
-			console.log('results ' + results);
+			//console.log('results ' + results);
 		});
 	});
 
@@ -61,6 +61,7 @@ io.sockets.on("connect",function(socket){
 });
 
 function executeCurrentStateArduinoCommands(){
+	console.log("execute arduino commands");
 	var currentState = machineState.getCurrentState();
 	if(currentState.arduinoCommands) {
 		for(var i=0;i<currentState.arduinoCommands.length;i++) {
@@ -86,18 +87,18 @@ function executeArduinoCommand(arduinoCommand){
 
 /* */
 var serialport = require("serialport");
-//serialport.list(function (err, ports) {
-//	ports.forEach(function(port) {
-//		console.log(port.comName);
-//		console.log(port.pnpId);
-//		console.log(port.manufacturer);
-//	});
-//});
+serialport.list(function (err, ports) {
+	ports.forEach(function(port) {
+		console.log(port.comName);
+		console.log(port.pnpId);
+		console.log(port.manufacturer);
+	});
+});
 
 
 var SerialPort = serialport.SerialPort;
-//var sp = new SerialPort("/dev/ttyAMA0", {
-var sp = new SerialPort("COM7", {
+var sp = new SerialPort("/dev/ttyACM0", {
+//var sp = new SerialPort("COM7", {
   baudrate: 9600,
 	parser: serialport.parsers.readline("\n")
 }, false); // this is the openImmediately flag [default is true]
@@ -112,15 +113,16 @@ sp.open(function (error) {
 	console.log("after start", state);
 	io.emit("machineStateChanged",{machineState:state});
    
-    sp.write("ls\n", function(err, results) {
+    sp.write("9", function(err, results) {
 		if(err) {
 			console.log('err ' + err);
 		}
+		console.log("arduino response:",results);
     });
   }
 });
 sp.on('data', function(data) {
-	//console.log('data received: ' , data.toString());
+	console.log('data received: ' , data.toString());
 	data=data.toString();
 	var param= data.split(":");
 	if(param[0] == "EVENT"){
@@ -140,6 +142,7 @@ function handleArduinoEvent(parameters){
 		case "LIMIT_SWITCH":
 				var topLimit = eventValue;
 				var bottomLimit = parameters[3];
+				console.log("limit switch: ", topLimit,bottomLimit);
 				currentState = machineState.getCurrentState();
 				if(topLimit ==0 && currentState.name == machineState.MOVE_TO_START_POSITION_STATE){
 					io.emit("machineStateChanged", {machineState: machineState.moveToNextState()});
@@ -277,21 +280,25 @@ function handleArduinoEvent(parameters){
 }
 
 
+/************** scanner code *****************/
+var usbScanner = require('./node_modules/node-usb-barcode-scanner/usbscanner').usbScanner;
+var getDevices = require('./node_modules/node-usb-barcode-scanner/usbscanner').getDevices;
 
+//get array of attached HID devices
+var connectedHidDevices = getDevices();
 
-//var counter=0;
-//mocking graph data
-//setInterval(function(){
-//	io.emit("currentMeasurement",{
-//		x:counter+"",
-//		y:Math.floor(Math.random() * 15) + 1
-//	});
-//	counter++;
-//},500);
-//setInterval(function(){
-//	counter=0;
-//	io.emit("currentMeasurement",{resetGraph:true});
-//},10000);
+//print devices
+console.log("devices",connectedHidDevices,"end devices");
+
+//initialize new usbScanner - takes optional parmeters vendorId and hidMap - check source for details
+var scanner = new usbScanner({vendorId:3727});
+
+//scanner emits a data event once a barcode has been read and parsed
+scanner.on("data", function(code){
+    console.log("recieved code : " + code);
+});
+
+/******************************************/
 
 
 
