@@ -10,7 +10,10 @@
   "author": "",
   "dependencies":{
     "react-d3-components": "^0.6.2",
-    "bootstrap": "^3.3.6"
+    "bootstrap": "^3.3.6",
+	"node-hid": "^0.5.1",
+    "node-usb-barcode-scanner": "^1.0.1",
+	"serialport": "^2.0.6"
   },
   "devDependencies": {
     "babel-core": "^6.5.2",

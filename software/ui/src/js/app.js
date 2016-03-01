@@ -2,6 +2,7 @@ var React = require("react");
 //var io = require("socket.io-client");
 // var MessageList = require("./messageList");
 var Graph = require("./graph");
+var AppServer = require("./server");
 
 var app = React.createClass({
     getInitialState(){
@@ -25,6 +26,10 @@ var app = React.createClass({
     },
 
     componentWillMount (){
+		var server = new AppServer();
+		server.on("start", function(obj){
+			console.log("server start",obj);
+		});
         //this.socket = io("http://localhost:3000");
         //this.socket.on("connect", this.connect);
         //this.socket.on("incrementOK", this.incrementOK);
@@ -166,7 +171,7 @@ var app = React.createClass({
                 </div>
                 <div className="row">
                     <div id="graph" className="col-xs-8">
-                        // <Graph graphData={this.state.graphData}/>
+                        <Graph graphData={this.state.graphData}/>
                     </div>
                     <div className="col-xs-4">
                         <div className="row">
@@ -189,15 +194,13 @@ var app = React.createClass({
                     <div className="col-xs-4">
                         <h3>Total OK</h3>
                     </div>
-                    <div className="col-xs-4">
+                    <div className="col-xs-2">
                         <h3>{this.state.totalOK}</h3>
                     </div>
-                </div>
-                <div className="row redClass">
-                    <div className="col-xs-4">
+                    <div className="col-xs-4 redClass">
                         <h3>Total NOK</h3>
                     </div>
-                    <div className="col-xs-4">
+                    <div className="col-xs-2 redClass">
                         <h3>{this.state.totalNOK}</h3>
                     </div>
                 </div>
