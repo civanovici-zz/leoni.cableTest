@@ -3,8 +3,12 @@
  */
  
 var express = require("express");
-
+var fs = require('fs');
 var app = express();
+var printer = require("printer");
+var util = require('util');
+var htmlToPdf = require('html-to-pdf');
+var bwipjs = require('bwip-js');
 
 app.use(express.static("./public"));
 app.use(express.static("./node_modules/bootstrap/dist"));
@@ -14,10 +18,10 @@ var server = app.listen(3000);
 var io = require("socket.io").listen(server);
 var MachineState = require("./server/machineState");
 var machineState = new MachineState();
-
+var comName="/dev/ttyACM0";
 
 io.sockets.on("connect",function(socket){
-
+	detectArduinoPort();
 	io.emit("infoMessage",{newMessage:"connection open to arduino"});
 	socket.once("disconnect",function(){
 		socket.disconnect();
@@ -33,36 +37,57 @@ io.sockets.on("connect",function(socket){
 
 	socket.on("print",function(){
 		console.log("click on print ...");
+		printLabel();
+		/*
 		sp.write("2", function(err, results) {
 			if(err) {
 				console.log('err ' + err);
 			}
-			//console.log('results ' + results);
 		});
+		*/
 	});
 
 	socket.on("stop",function(){
-		console.log("click on stop");
-		machineState.setUndefinedState();
-		var currentState = machineState.getCurrentState();
-		io.emit("infoMessage",{resetMessageList:true});
-		io.emit("machineStateChanged",{machineState:currentState});
-		executeCurrentStateArduinoCommands();
+		console.log("--->click on stop");
+		console.log("status:", sp.isOpen());
+		if(sp.isOpen()!=true){
+			console.log("try to open port arduino");
+			detectArduinoPort(function(){
+				console.log("reopen port",comName);
+				sp = new SerialPort(comName, {
+				//var sp = new SerialPort("COM7", {
+				  baudrate: 9600,
+					parser: serialport.parsers.readline("\n")
+				}, false); // this is the openImmediately flag [default is true]
+				sp.open(openSerialPort);
+				setTimeout(function(){
+					stopMachine();
+				},500);
+			});
+			
+		}else{
+			stopMachine();
+			console.log("stopping machine");
+		}
 	});
-
-	//setTimeout(function(){
-	//		socket.emit("batchCange",{
-	//			batch:"3345789"
-	//		});
-	//	},5000
-	//);
-
+/*
+	setTimeout(function(){
+			io.emit("batchChange",{
+				batch:"3345789"
+			});
+		},5000
+	);
+*/
 	console.log("Connected  sockets");
 });
 
 function executeCurrentStateArduinoCommands(){
-	console.log("execute arduino commands");
 	var currentState = machineState.getCurrentState();
+	console.log("execute arduino commands",currentState);
+	if(currentState == undefined){
+		console.log("trying to execute undefined state");
+		return;
+	}
 	if(currentState.arduinoCommands) {
 		for(var i=0;i<currentState.arduinoCommands.length;i++) {
 			console.log("executing arduino command:",currentState.arduinoCommands[i]);
@@ -83,46 +108,72 @@ function executeArduinoCommand(arduinoCommand){
 	})
 }
 
-
+function stopMachine(){
+	machineState.setUndefinedState();
+	var currentState = machineState.getCurrentState();
+	io.emit("infoMessage",{resetMessageList:true});
+	io.emit("machineStateChanged",{machineState:currentState});
+	executeCurrentStateArduinoCommands();	
+}
 
 /* */
 var serialport = require("serialport");
-serialport.list(function (err, ports) {
-	ports.forEach(function(port) {
-		console.log(port.comName);
-		console.log(port.pnpId);
-		console.log(port.manufacturer);
+/* */
+
+function detectArduinoPort(callback){
+	serialport.list(function (err, ports) {
+		ports.forEach(function(port) {
+			if(port.manufacturer){
+				if(port.manufacturer.indexOf("Arduino")>-1){
+					comName=port.comName;
+					console.log("arduino found");
+					if(callback){
+						console.log("calback...",comName);
+						callback();
+					}
+					return;
+				}
+			}
+			console.log(port.comName);
+			console.log(port.pnpId);
+			console.log(port.manufacturer);
+		});
 	});
-});
+}
 
 
 var SerialPort = serialport.SerialPort;
-var sp = new SerialPort("/dev/ttyACM0", {
+var sp = new SerialPort(comName, {
 //var sp = new SerialPort("COM7", {
   baudrate: 9600,
 	parser: serialport.parsers.readline("\n")
 }, false); // this is the openImmediately flag [default is true]
 
-sp.open(function (error) {
-  if ( error ) {
-    console.log('failed to open: '+error);
-  } else {
-    console.log('arduino serial open');
-	machineState.setUndefinedState();
-	var state = machineState.getCurrentState();
-	console.log("after start", state);
-	io.emit("machineStateChanged",{machineState:state});
-   
-    sp.write("9", function(err, results) {
-		if(err) {
-			console.log('err ' + err);
-		}
-		console.log("arduino response:",results);
-    });
-  }
-});
+sp.open(openSerialPort);
+
+function openSerialPort(error){
+	if ( error ) {
+		console.log('failed to open: '+error);
+	} else {
+		console.log('arduino serial open');
+		machineState.setUndefinedState();
+		var state = machineState.getCurrentState();
+		console.log("after start", state);
+		io.emit("machineStateChanged",{machineState:state});
+	   
+		sp.write("9", function(err, results) {
+			if(err) {
+				console.log('err ' + err);
+			}
+			console.log("arduino response:",results);
+		});
+	}
+}
+
+
+
 sp.on('data', function(data) {
-	console.log('data received: ' , data.toString());
+	console.log('data from arduino: ' , data.toString());
 	data=data.toString();
 	var param= data.split(":");
 	if(param[0] == "EVENT"){
@@ -204,7 +255,7 @@ function handleArduinoEvent(parameters){
 				if(currentState.name == machineState.TEST_EXECUTION_STATE){
 					var cableValue = parameters[3];
 					console.log("--------measure current:", eventValue,cableValue);
-					if(cableValue<50){
+					if(cableValue==1){
 						//cable detached
 						clearInterval(machineState.stopCurrentLeakeageHandler);
 						currentState = machineState.setCableDetachedState();
@@ -214,23 +265,35 @@ function handleArduinoEvent(parameters){
 					}
 					//nominal voltage = 5V
 					//resitor = 150 ohm
-					var current =((cableValue*5)/ 1024)/150*1000;
+					var current =eventValue;//((cableValue*5)/ 1024)/150*1000;
 					io.emit("infoMessage",{newMessage:"current: "+current});
-					io.emit("currentMeasurement",{x:machineState.leakCurrentSample.length,y:current});
+					var graphValue=0;
+					if(current<-500){
+						graphValue = -1*current;
+					}
+					io.emit("currentMeasurement",{x:machineState.leakCurrentSample.length,y:graphValue});
 					machineState.leakCurrentSample.push(current);
 					if(machineState.leakCurrentTotalSampleCount<machineState.leakCurrentSample.length){
 						console.log("-------------stop sampling!");
 						//stop sampling and do average
 						var totalCurrent=0;
 						for(var i=0;i<machineState.leakCurrentSample.length;i++){
-							totalCurrent+=machineState.leakCurrentSample[i];
+							var tmpValue = parseInt(machineState.leakCurrentSample[i]);
+							if( isNaN(tmpValue)){
+								
+							}else{
+								totalCurrent+=tmpValue;
+							}
+							console.log("measure:", machineState.leakCurrentSample[i]);
 						}
 						var averageCurrent = totalCurrent/machineState.leakCurrentSample.length;
+						console.log("average:",averageCurrent,totalCurrent);
 						//getNextState
 						currentState = machineState.moveToNextState();
+						
 
 						//increment OK/NOK
-						if(averageCurrent<1){
+						if(averageCurrent>-300){
 							machineState.salmpleOK++;
 							currentState.messageToScreen="TEST PASS";
 						}else{
@@ -250,7 +313,7 @@ function handleArduinoEvent(parameters){
 		case "CABLE_CONNECTION":
 				currentState = machineState.getCurrentState();
 				if(currentState.name == machineState.WAIT_TO_ATTACH_CABLE_STATE){
-					if(eventValue>50){
+					if(eventValue==0){
 						machineState.cablePresentCount++;
 					}else{
 						machineState.cablePresentCount=0;
@@ -262,10 +325,10 @@ function handleArduinoEvent(parameters){
 
 					}
 				}else if(currentState.name==machineState.MOVING_TO_TEST_POSITION_STATE){
-					if(eventValue<50){
+					if(eventValue==1){
 						clearInterval(machineState.stopCheckingCableHandler);
 						machineState.setCableDetachedState();
-						currentState = machineState.moveToNextState();
+						currentState = machineState.getCurrentState();
 						io.emit("machineStateChanged",{machineState:currentState});
 						executeArduinoCommand(currentState.arduinoCommands[0]);
 					}
@@ -288,18 +351,142 @@ var getDevices = require('./node_modules/node-usb-barcode-scanner/usbscanner').g
 var connectedHidDevices = getDevices();
 
 //print devices
-console.log("devices",connectedHidDevices,"end devices");
+//console.log("devices",connectedHidDevices,"end devices");
 
 //initialize new usbScanner - takes optional parmeters vendorId and hidMap - check source for details
 var scanner = new usbScanner({vendorId:3727});
 
 //scanner emits a data event once a barcode has been read and parsed
 scanner.on("data", function(code){
-    console.log("recieved code : " + code);
+    console.log("recieved code : " + code.toString());
+	io.emit("batchChange",{batch:code.toString()});
+	io.emit("infoMessage",{bingo:"merge"});
+	console.log("batchChange");
+	//io.emit("machineStateChanged",{machineState:currentState});
+	machineState.batch = code;
+	console.log("new batch",machineState.batch);
 });
 
 /******************************************/
 
+function printLabel(){
+	generateBarcode(function(){
+		generateHtml(function(){
+			generatePDF(function(){
+				printToFile();
+				machineState.salmpleNOK = 0;
+				machineState.salmpleOK = 0;
+				io.emit("incrementOK",{totalOK:machineState.salmpleOK});
+				io.emit("incrementNOK",{totalNOK:machineState.salmpleNOK});
+			});
+		});
+	});
+}
+
+printToFile = function(callback){
+	io.emit("infoMessage",{newMessage:"printing ..."});
+	printer.printDirect({data:fs.readFileSync("label.pdf"),
+		type: 'PDF',
+		success:function(jobID){
+			console.log("--sent to printer with ID: "+jobID);
+		},
+		error:function(err){
+			console.log("error printing",err);
+		}
+	});
+}
+/******************************************/
+
+/****************barCode ******************/
+var barcodeArguments = {
+		bcid:			'code128',		// Barcode type 
+		text:			machineState.batch,	// Text to encode 
+		scale:			2,				// 3x scaling factor 
+		height:			6,				// Bar height, in millimeters 
+		includetext:	true,			// Show human-readable text 
+		textxalign:		'center',		// Always good to set this 
+		textfont:		'Inconsolata',	// Use your custom font 
+		textsize:		12				// Font size, in points 
+	};
+	
+// Optionally load some custom fonts.  Maximum 8. 
+// OpenType and TrueType are supported. 
+//bwipjs.loadFont('Inconsolata', 108,
+//            require('fs').readFileSync('./node_modules/bwipp/Inconsolata.otf', 'binary'));
+
+generateBarcode = function(callback){
+	barcodeArguments.text = machineState.batch || "00000";
+	barcodeArguments.bcid = 'code128';
+	io.emit("infoMessage",{newMessage:"generating barcode ..."});
+	bwipjs.toBuffer(barcodeArguments, function (err, png) {
+		if (err) {
+			// Decide how to handle the error 
+			// `err` may be a string or Error object 
+			console.log("error generating barcode",err);
+			io.emit("infoMessage",{newMessage:"ERROR generating barcode"});
+		} else {
+					
+			fs.writeFile("barcode.png", png, function(err1) {
+				if(err1) {
+					return console.log(err);
+				}
+				console.log("--barcode.png file generated");	
+				io.emit("infoMessage",{newMessage:"Done generating barcode"});
+				if(callback)
+					callback();
+			});
+		}
+	});
+};
+
+/******************************************/
+
+/****************generate PDF *************/
+generatePDF = function(callback){
+	io.emit("infoMessage",{newMessage:"generating PDF ..."});
+	htmlToPdf.convertHTMLFile('print.html', 'label.pdf',
+		function (error, success) {
+		   if (error) {
+				console.log('Oh noes! Errorz!');
+				console.log(error);
+			} else {
+				console.log('Woot! Success!');
+				console.log(success);
+				io.emit("infoMessage",{newMessage:"Done generating PDF"});
+			}
+			if(callback)
+				callback();
+		}
+	);
+}
+/******************************************/
+
+/****************generate HTML ************/
+generateHtml = function(callback){
+	io.emit("infoMessage",{newMessage:"generating HTML ..."});
+	var d = new Date();
+	var nDate = d.toDateString();
+	var nTime = d.toLocaleTimeString();
+	var total = machineState.salmpleOK+machineState.salmpleNOK;
+	var html="<!DOCTYPE html><html><body style='height:200px;width:230px;'><img src='barcode.png'/>"
+	html+="<span>"+machineState.batch+"</span>";
+	html+="<h4>";
+	html+= "<span>OK: "+machineState.salmpleOK+"</span>";
+	html+="<span>&nbsp; NOK: "+ machineState.salmpleNOK+"</span><span>&nbsp;TOTAL: "+total+"</span>";
+	//html+="<span>  TOTAL: "+total+"</span>";
+	html+="</br><span>"+nDate+" "+nTime+"</span>"
+	html+="</h4></body></html>";
+	fs.writeFile("/home/pi/leoni/leoni.cableTest/software/node-app/print.html", html, function(err1) {
+		if(err1) {
+			console.log(err1);
+		}
+		console.log("--html generated");	
+		io.emit("infoMessage",{newMessage:"Done generating html"});
+		if(callback)
+			callback();
+	});
+}
+/******************************************/
 
 
 console.log("server running on port 3000");

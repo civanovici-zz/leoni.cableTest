@@ -1,4 +1,6 @@
 // webpack.config.js
+var path = require('path');
+var fs = require('fs');
 var webpack = require('webpack');
 
 module.exports = {
@@ -21,5 +23,11 @@ module.exports = {
         }
       }
     ]
+  },
+  
+  resolve: {
+    root: path.join(__dirname),
+    fallback: path.join(__dirname, 'node_modules'),
+    modulesDirectories: ['node_modules'],
   }
 };

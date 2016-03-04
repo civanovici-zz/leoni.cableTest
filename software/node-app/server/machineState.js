@@ -6,13 +6,13 @@ function MachineState(){
     this.stopCheckingCableHandler=0; //variable to store setInterval handler
     this.stopCurrentLeakeageHandler=0; //variable to store setInterval handler
     this.intervalToCheckCabllePresent =500; //interval to check if cable are attached
-    this.intervalToCheckCablleLeakCurrent =1000; //interval to check if cable has leaks
+    this.intervalToCheckCablleLeakCurrent =500; //interval to check if cable has leaks
     this.cablePresentCount = 0; //how many times are checking if cable are attached
     this.cablePresentMaxCount = 10; //how many times are checking if cable are attached
     this.microwaveTimeout = 5000;
     this.vaccumTimeout = 10000;
     this.leakCurrentSample=[]; //temp var for current samples
-    this.leakCurrentTotalSampleCount = 5; //how many samples to measure
+    this.leakCurrentTotalSampleCount = 10; //how many samples to measure
     this.salmpleOK=0;
     this.salmpleNOK=0;
 

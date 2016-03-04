@@ -8,7 +8,7 @@ var app = React.createClass({
 		return {
 			status:"disconnected",
 			batch:"none",
-            messageList:[],
+            messageList:"",
             graphData:[{
                 label: 'a',
                 values: [
@@ -19,8 +19,8 @@ var app = React.createClass({
             startButtonLabel:"START",
             microwaveState:"btn-info",
             vaccumState:"btn-info",
-            totalOK:0,
-            totalNOK:0
+            totalOK:3,
+            totalNOK:2
 		}
 	},
 	
@@ -30,13 +30,14 @@ var app = React.createClass({
 		this.socket.on("incrementOK", this.incrementOK);
 		this.socket.on("incrementNOK", this.incrementNOK);
 		this.socket.on("disconnect", this.disconnect);
-		this.socket.on("batchCange", this.batchChange);
+		this.socket.on("batchChange", this.batchChange);
 		this.socket.on("infoMessage", this.infoMessage);
 		this.socket.on("microwaveState", this.microwaveState);
 		this.socket.on("vaccumState", this.vaccumState);
 		this.socket.on("machineStateChanged", this.machineStateChanged);
 		this.socket.on("currentMeasurement", this.currentMeasurement);
 	},
+
     microwaveState(){},
     vaccumState(){},
 	connect(){
@@ -51,18 +52,19 @@ var app = React.createClass({
 	},
 
 	batchChange(serverState){
-		console.log(serverState);
+		console.log("--->",serverState);
 		this.setState({
 			batch:serverState.batch
 		});
 	},
 
     infoMessage(serverState){
+		console.log("info:", serverState);
         var msgList = this.state.messageList;
         if(serverState.resetMessageList){
-            msgList = [];
+            msgList = "";
         }else {
-            msgList.push(serverState.newMessage);
+            msgList= serverState.newMessage;
         }
         this.setState({
           messageList:msgList
@@ -179,28 +181,28 @@ var app = React.createClass({
                             <br/>
                         </div>
                         <div className="row">
-                            <input type="button" className="col-xs-8 btn btn-primary btn-lg action-button" onClick={this.print} value="PRINT"/>
+                            <input type="button" id="printBtn" className="col-xs-8 btn btn-primary btn-lg action-button" onClick={this.print} value="PRINT"/>
                             <br/>
                         </div>
-
                     </div>
                 </div>
                 <div className="row">
                     <div className="col-xs-4">
                         <h3>Total OK</h3>
                     </div>
-                    <div className="col-xs-4">
+                    <div className="col-xs-2">
                         <h3>{this.state.totalOK}</h3>
                     </div>
-                </div>
-                <div className="row redClass">
-                    <div className="col-xs-4">
+                    <div className="col-xs-4 redClass">
                         <h3>Total NOK</h3>
                     </div>
-                    <div className="col-xs-4">
+                    <div className="col-xs-2 redClass">
                         <h3>{this.state.totalNOK}</h3>
                     </div>
                 </div>
+				<div className="row">
+					<span className="col-xs-12">{this.state.messageList}</span>
+				</div>
             </div>
         );
     }
