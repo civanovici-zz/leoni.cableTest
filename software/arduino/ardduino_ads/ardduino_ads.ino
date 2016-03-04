@@ -64,18 +64,28 @@ void setup(){
   pinMode(LIMIT_BOTTOM_PIN, INPUT_PULLUP);
   pinMode(EMERGENCY_PIN, INPUT_PULLUP);
   //pinMode(CABLE1_PIN, INPUT_PULLUP);
-  //pinMode(CABLE2_PIN, INPUT_PULLUP);
+  pinMode(CABLE2_PIN, INPUT_PULLUP);
   //pinMode(CABLES_PIN, INPUT_PULLUP);
   digitalWrite(MOTOR_DIR_PIN, HIGH);
 
   pinMode(CABLE2_PIN, INPUT_PULLUP);
 
-  ads.setGain(GAIN_FOUR);
+  ads.setGain(GAIN_TWO);
   ads.begin();
   
 }
 
 void loop(){
+//  delay(100);
+//  int16_t results;
+  
+  /* Be sure to update this value based on the IC and the gain settings! */
+//  float   multiplier = 0.125F;    /* ADS1015 @ +/- 6.144V gain (12-bit results) */
+  //float multiplier = 0.1875F; /* ADS1115  @ +/- 6.144V gain (16-bit results) */
+
+//  results = ads.readADC_Differential_0_1();  
+//  Serial.print(" Differential: "); Serial.print(results); Serial.print("("); Serial.print(results * multiplier); Serial.println("mV)");
+
   
   if(Serial.available()>0){
     int byte = Serial.read();
@@ -111,7 +121,6 @@ void loop(){
         digitalWrite(MICROWAVE_PIN, LOW);
         break;
       case COMMAND_MEASURE_CURRENT:
-         Serial.println("???");
         measureLeakCurrent();
         break;
       case COMMAND_READ_CABLE_CONNECTION:
@@ -153,6 +162,7 @@ void measureCableConnection(){
 
 void measureLeakCurrent(){
   Serial.println("measure current");
+  int cableConnection = digitalRead(CABLE2_PIN);
   int16_t results;
   float multiplier = 0.125F;
   results = ads.readADC_Differential_0_1(); 
@@ -160,7 +170,7 @@ void measureLeakCurrent(){
 
   //int cableConnection = analogRead(CABLE2_PIN);
   //int leakCurrent = analogRead(CABLE1_PIN);
-  sendEvent(String("LEAK_CURRENT:")+String(results));
+  sendEvent(String("LEAK_CURRENT:")+String(results)+String(":")+String(cableConnection));
 }
 
 
